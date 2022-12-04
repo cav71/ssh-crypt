@@ -55,6 +55,8 @@ creates sha3_256 from it and uses it as a AES key to decrypt the rest of data
 # How to install it
 
     pip install ssh-crypt
+    (or)
+    conda install ssh-crypt
 
 # How to use it in python scripts
 
