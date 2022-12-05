@@ -17,5 +17,6 @@ requirements:
     - python
   run:
     - python
+    - paramiko
     - cryptography
 
