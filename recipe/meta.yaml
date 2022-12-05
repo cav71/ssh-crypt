@@ -17,4 +17,5 @@ requirements:
     - python
   run:
     - python
+    - cryptography
 
