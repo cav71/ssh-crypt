@@ -9,6 +9,7 @@ from paramiko import AgentKey
 from .jsonc_tokenizer import Span, StringSpan, CommentSpan, Comment2Span, Tokenizer
 from .ciphers import Encryptor, Decryptor, ProcessorsAbc
 from .utils import get_first_key, find_filter_key, E
+from .exceptions import SSHCryptError
 
 
 class Processor:
@@ -99,15 +100,24 @@ class JsonCProcessor(Tokenizer, ProcessorsAbc):
 PROCESSORS = {"decrypt": Decryptor, "encrypt": Encryptor, "jsonc": JsonCProcessor}
 
 
-def main() -> None:
-    ssh_key = get_first_key()
-    if not ssh_key:
-        sys.stderr.write("SSH key not found\n")
-        exit(1)
+def cli(fn):
+    def _fn():
+        parser = argparse.ArgumentParser(
+            description="Encrypting/Decrypting data using key from ssh-agent"
+        )
+        try:
+            return fn(parser)
+        except SSHCryptError as e:
+            msg = e.message
+            if e.hint:
+                msg = f"{msg}\nhint:\n{e.hint}"
+            parser.error(msg)
 
-    parser = argparse.ArgumentParser(
-        description="Encrypting/Decrypting data using key from ssh-agent"
-    )
+    return _fn
+
+
+@cli
+def main(parser) -> None:
     parser.add_argument(
         "--encrypt",
         "-e",
@@ -152,6 +162,10 @@ def main() -> None:
     )
 
     args = parser.parse_args()
+
+    ssh_key = get_first_key()
+    if not ssh_key:
+        raise SSHCryptError("SSH key not found")
 
     if args.key:
         ssh_key = find_filter_key(args.key)
