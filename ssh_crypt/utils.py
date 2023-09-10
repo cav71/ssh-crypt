@@ -50,10 +50,11 @@ def get_first_key():
 def find_filter_key(ssh_filter: str) -> AgentKey | None:
     ssh_filter = ssh_filter.encode()
     filter_keys = []
-    for key, comment in [key for key in get_keys() if key[0].name in VALID_SSH_NAME]:
+    all_valid_keys = [pair for pair in get_keys() if pair[0].name in VALID_SSH_NAME]
+    for key, comment in all_valid_keys:
         if ssh_filter in comment:
             filter_keys.append(key)
-        elif ssh_filter in binascii.hexlify(key[0].get_fingerprint(), sep=":"):
+        elif ssh_filter in binascii.hexlify(key.get_fingerprint(), sep=":"):
             filter_keys.append(key)
     if filter_keys:
         return filter_keys[0]

@@ -20,11 +20,7 @@ class Processor:
         output_file: Optional[str],
         string_data: Optional[str],
     ):
-        try:
-            self.data_processor = data_processor
-        except ValueError as err:
-            sys.stderr.write("%s\n" % err)
-            exit(1)
+        self.data_processor = data_processor
         self.input = sys.stdin.buffer
         if string_data:
             self.input = BytesIO(string_data.encode("utf-8"))
@@ -100,7 +96,7 @@ class JsonCProcessor(Tokenizer, ProcessorsAbc):
 PROCESSORS = {"decrypt": Decryptor, "encrypt": Encryptor, "jsonc": JsonCProcessor}
 
 
-def cli(fn):
+def driver(fn):
     def _fn():
         parser = argparse.ArgumentParser(
             description="Encrypting/Decrypting data using key from ssh-agent"
@@ -116,7 +112,7 @@ def cli(fn):
     return _fn
 
 
-@cli
+@driver
 def main(parser) -> None:
     parser.add_argument(
         "--encrypt",
@@ -170,8 +166,7 @@ def main(parser) -> None:
     if args.key:
         ssh_key = find_filter_key(args.key)
         if not ssh_key:
-            sys.stderr.write("SSH key not found\n")
-            exit(1)
+            raise SSHCryptError("SSH key not found")
 
     if args.processor:
         data_processor = PROCESSORS[args.processor](ssh_key, args.binary)

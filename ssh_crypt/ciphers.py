@@ -1,4 +1,3 @@
-import sys
 import random
 import base64
 from abc import ABC
@@ -15,6 +14,7 @@ from cryptography.hazmat.backends import default_backend
 
 from .constants import VALID_SSH_NAME
 from .constants import NONCE_LENGTH
+from .exceptions import SSHCryptUnableToDecriptError
 
 
 class ProcessorsAbc(ABC):
@@ -149,8 +149,9 @@ class Decryptor(ProcessorsAbc):
                 return b""
 
         if not self.decoder:
-            sys.stderr.write("Unable to decrypt data")
-            exit(2)
+            raise SSHCryptUnableToDecriptError(
+                "Unable to decrypt data", "cannot find Decryptor.decoder"
+            )
 
         if not self.binary:
             b85block_size = len(self.buf) - (len(self.buf) % 5)

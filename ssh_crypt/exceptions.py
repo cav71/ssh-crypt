@@ -14,3 +14,15 @@ class SSHCrypAgentNotConnected(SSHCryptError):
 
 class SSHCryptCannotRetrieveKeysError(SSHCryptError):
     pass
+
+
+class SSHCryptProcessorError(SSHCryptError):
+    pass
+
+
+class SSHCryptUnableToDecriptError(SSHCryptProcessorError):
+    pass
+
+
+class SSHCryptUnableToEncryptError(SSHCryptProcessorError):
+    pass
