@@ -2,8 +2,22 @@ import os
 import subprocess
 import shlex
 import signal
+from pathlib import Path
 
 import pytest
+
+
+@pytest.fixture(scope="function")
+def ssh_add(monkeypatch):
+    script = Path(__file__).parent / "askpass.py"
+    monkeypatch.setenv("SSH_ASKPASS", str(script))
+    monkeypatch.setenv("SSH_ASKPASS_REQUIRE", "force")
+    def cmd(keyfile, password):
+        env = os.environ.copy()
+        if password:
+            env["MYSECRET"] = password
+        subprocess.check_call(["ssh-add", str(keyfile)], env=env)
+    yield cmd
 
 
 @pytest.fixture(scope="function")

@@ -1,18 +1,32 @@
 import os
 import binascii
+import logging
+
+from pathlib import Path
 from typing import Union, Optional
 
 from paramiko import Agent
 from paramiko import AgentKey
+from paramiko.pkey import PKey
+from paramiko import RSAKey
+from paramiko.ecdsakey import ECDSAKey
 from paramiko.agent import cSSH2_AGENTC_REQUEST_IDENTITIES, SSH2_AGENT_IDENTITIES_ANSWER
 
 from .ciphers import Decryptor
 from .constants import VALID_SSH_NAME
-from .exceptions import SSHCrypAgentNotConnected, SSHCryptCannotRetrieveKeysError
+from .exceptions import (
+    SSHCrypAgentNotConnected,
+    SSHCryptCannotRetrieveKeysError,
+    SSHCryptFileError,
+)
 
 
-def get_keys():
-    agent = Agent()
+logger = logging.getLogger(__name__)
+
+
+def get_keys(agent: Agent | None = None) -> list[AgentKey]:
+    """retrieves a list of agent keys"""
+    agent = agent or Agent()
 
     # this is the only reliable way to check if there's a connection
     # (see paramiko.agent.Agent.__init__)
@@ -27,7 +41,7 @@ def get_keys():
             "could not get keys from ssh-agent",
             f"check SSH_AUTH_SOCK={os.getenv('SSH_AUTH_SOCK')} "
             f"or SSH_AGENT_PID={os.getenv('SSH_AGENT_PID')} are"
-            f" pointing to the right agent and it is running",
+            f" pointing to the right agent and they are running",
         )
     keys = []
     for i in range(result.get_int()):
@@ -35,6 +49,45 @@ def get_keys():
         key_comment = result.get_string()
         keys.append((AgentKey(agent, key_blob), key_comment))
     return keys
+
+
+def create_new_key_pair(
+    ssh_name: str,
+    dest: Path | None = None,
+    force: bool = False,
+    password: str | None = None,
+    **kwargs,
+) -> tuple[PKey, Path]:
+    assert ssh_name in VALID_SSH_NAME
+
+    home = Path(os.getenv("SSH_HOME") or "~/.ssh").expanduser()
+    path = home / (
+        dest
+        or {
+            "ssh-rsa": "id_rsa",
+            "ssh-ed25519": "id_ed25519",
+        }[ssh_name]
+    )
+
+    logger.debug(
+        "writing private(public) keys under %s(%s)", path, path.with_suffix(".pub")
+    )
+
+    if ssh_name == "ssh-rsa":
+        if "bits" not in kwargs:
+            kwargs["bits"] = 2048
+        key = RSAKey.generate(**kwargs)
+    elif ssh_name == "ssh-ed25519":
+        key = ECDSAKey.generate(**kwargs)
+
+    if not force and (path.exists() or path.with_suffix(".pub").exists()):
+        raise SSHCryptFileError("key file(s) present", f"remove {path}(.pub)?")
+
+    path.parent.mkdir(parents=True, exist_ok=True)
+    key.write_private_key_file(path, password)
+    path.with_suffix(".pub").write_text(f"{key.get_name()} {key.get_base64()}")
+
+    return key, path
 
 
 def get_first_key():

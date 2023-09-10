@@ -1,4 +1,6 @@
-
+import os
+import sys
+from pathlib import Path
 import pytest
 
 import ssh_crypt
@@ -15,5 +17,18 @@ def test_get_keys_missing_agent(monkeypatch):
     pytest.raises(exceptions.SSHCrypAgentNotConnected, utils.get_keys)
 
 
-def test_get_keys_empty_agent(ssh_agent):
+@pytest.mark.skipif(sys.platform.startswith("win"), reason="cannot run this on windows")
+def test_create_new_key_pair(ssh_agent, ssh_add):
+    assert ssh_agent
+
+    password = "hello-world-password"
+
+    # creates two keys one password protected
     assert len(utils.get_keys()) == 0
+    paths = []
+    paths.append(utils.create_new_key_pair("ssh-rsa")[1])
+    paths.append(utils.create_new_key_pair("ssh-ed25519", password=password)[1])
+    for path in paths:
+        assert path.is_relative_to(Path(os.getenv("SSH_HOME")))
+        ssh_add(path, password)
+    assert len(utils.get_keys()) == 2
