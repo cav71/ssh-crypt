@@ -11,8 +11,9 @@ from .constants import VALID_SSH_NAME
 from .exceptions import SSHCrypAgentNotConnected, SSHCryptCannotRetrieveKeysError
 
 
-def get_keys():
-    agent = Agent()
+def get_keys(agent: Agent | None = None) -> list[tuple[AgentKey, bytes]]:
+    """retrieves list of (AgentKey, comments) from agent"""
+    agent = agent or Agent()
 
     # this is the only reliable way to check if there's a connection
     # (see paramiko.agent.Agent.__init__)
@@ -46,16 +47,16 @@ def get_first_key():
         return keys[0][0]
 
 
-def find_filter_key(ssh_filter):
+def find_filter_key(ssh_filter: str) -> AgentKey | None:
     ssh_filter = ssh_filter.encode()
     filter_keys = []
-    for key in [key for key in get_keys() if key[0].name in VALID_SSH_NAME]:
-        if ssh_filter in key[1]:
+    for key, comment in [key for key in get_keys() if key[0].name in VALID_SSH_NAME]:
+        if ssh_filter in comment:
             filter_keys.append(key)
         elif ssh_filter in binascii.hexlify(key[0].get_fingerprint(), sep=":"):
             filter_keys.append(key)
     if filter_keys:
-        return filter_keys[0][0]
+        return filter_keys[0]
 
 
 class E:
